@@ -35,7 +35,7 @@ class Bank:
         self.add_person(id, Manager(acc, name, age, gender, password))
         return id
 
-    def _authenticate(self) -> None:
+    def _authenticate(self) -> Person:
         try:
             id = int(input("Enter id: "))
             person = self.get_person(id)
