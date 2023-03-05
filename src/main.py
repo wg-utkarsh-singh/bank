@@ -30,7 +30,7 @@ def load_bank_data(filename: str) -> Bank:
 
 
 if __name__ == "__main__":
-    test_filename = "..\\data\\data.pkl"
+    test_filename = "../data/data.pkl"
     dump_bank_data(demo_bank(), test_filename)
     bank = load_bank_data(test_filename)
     print(bank._persons)
