@@ -49,7 +49,7 @@ class BankAccount(Account):
         if not self._is_open:
             raise BankAccountBlocked
         self._balance += amount
-        self._add_statement(f"₹{amount} deposited")
+        self._add_statement(f"₹{amount} deposited. Balance: ₹{self._balance}")
 
     def withdraw(self, amount: int) -> None:
         if not self._is_open:
@@ -57,4 +57,4 @@ class BankAccount(Account):
         if self._balance - amount < BankAccount.min_balance:
             raise InsufficientBalance
         self._balance -= amount
-        self._add_statement(f"₹{amount} withdrawn")
+        self._add_statement(f"₹{amount} withdrawn. Balance: ₹{self._balance}")
