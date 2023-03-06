@@ -70,6 +70,15 @@ class Cashier(Person):
         bank_acc = BankAccount(id, balance)
         return id, Customer(bank_acc, name, age, gender, password)
 
+    def set_balance(self, bank_acc: BankAccount, amount: int) -> None:
+        balance = bank_acc.get_balance()
+        if amount == balance:
+            return
+        elif amount > balance:
+            bank_acc.deposit(amount - balance)
+        else:
+            bank_acc.withdraw(balance - amount)
+
 
 class Manager(Person):
     def __init__(
