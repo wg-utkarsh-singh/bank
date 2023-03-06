@@ -2,26 +2,28 @@ from collections import deque
 from collections.abc import Callable
 from getpass import getpass
 
+import exceptions
 from account import Account, BankAccount
-from exceptions import AccountNotFound, InsufficientBalance, InvalidPassword
 from person import Cashier, Customer, Manager, Person, get_id
 
 
 def get_validated_input(callback: Callable, *args, **kwargs):
     try:
         return callback(*args, **kwargs)
-    except AccountNotFound:
+    except exceptions.AccountNotFound:
         print("Account not found. Retry!")
         return get_validated_input(callback, *args, **kwargs)
-    except InsufficientBalance:
+    except exceptions.InsufficientBalance:
         print(f"Minimum balance must be ₹{BankAccount.min_balance}. Retry!")
         return get_validated_input(callback, *args, **kwargs)
-    except InvalidPassword:
+    except exceptions.InvalidPassword:
         print("Invalid password. Retry!")
         return get_validated_input(callback, *args, **kwargs)
     except ValueError:
         print("Invalid input. Retry!")
         return get_validated_input(callback, *args, **kwargs)
+    except exceptions.BankAccountBlocked:
+        print("Back account blocked. Contact manager!")
 
 
 class Bank:
@@ -30,10 +32,10 @@ class Bank:
         self._pending_changes = deque()
 
     def get_person(self, id: int) -> Person:
-        if acc := self._persons.get(id, False):
-            return acc
+        if person := self._persons.get(id, False):
+            return person
         else:
-            raise AccountNotFound
+            raise exceptions.AccountNotFound
 
     def num_of_pending_changes(self) -> int:
         return len(self._pending_changes)
@@ -137,11 +139,19 @@ class Bank:
         if get_validated_input(self._input_continue):
             self._manage_cashier(cashier)
 
-    def _manage_manager(self, manager: Manager) -> None:
-        print("1. Add cashier\n2. Process changes\n3. Back to login")
-        choice = get_validated_input(self._input_choice, 1, 3)
+    def _input_block_account(self, manager: Manager) -> None:
+        id = int(input("Enter id: "))
+        customer = self.get_person(id)
+        bank_acc = customer.get_bank_account()
+        if get_validated_input(self._input_continue):
+            manager.block_account(bank_acc)
+            print(f"Bank account for customer with id {id} blocked.")
 
-        if choice == 3:
+    def _manage_manager(self, manager: Manager) -> None:
+        print("1. Add cashier\n2. Process changes\n3. Block account\n4. Back to login")
+        choice = get_validated_input(self._input_choice, 1, 4)
+
+        if choice == 4:
             self.manage()
             return
 
@@ -156,6 +166,8 @@ class Bank:
                 customer, change = self.get_pending_change()
                 if not manager.process_change(customer, change):
                     self.add_pending_change(customer, change)
+        elif choice == 3:
+            get_validated_input(self._input_block_account, manager)
 
         if get_validated_input(self._input_continue):
             self._manage_manager(manager)
@@ -164,10 +176,14 @@ class Bank:
         person = get_validated_input(self._authenticate)
         name = person.get_details()["name"]
         if isinstance(person, Customer):
-            acc = person.get_bank_account()
-            balance = acc.get_balance()
-            print(f"Hello customer {name}, your current balance is: {balance}")
-            self._manage_customer(person)
+            acc = get_validated_input(person.get_bank_account)
+            if not acc.get_status():
+                print("Your account has been blocked. Contact manager!")
+                self.manage()
+            else:
+                balance = acc.get_balance()
+                print(f"Hello customer {name}, your current balance is: {balance}")
+                self._manage_customer(person)
         elif isinstance(person, Cashier):
             print(f"Hello cashier {name}.")
             self._manage_cashier(person)

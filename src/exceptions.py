@@ -8,3 +8,7 @@ class AccountNotFound(Exception):
 
 class InvalidPassword(Exception):
     pass
+
+
+class BankAccountBlocked(Exception):
+    pass

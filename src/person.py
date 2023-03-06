@@ -102,3 +102,6 @@ class Manager(Person):
         id = get_id()
         acc = Account(id)
         return id, Cashier(acc, name, age, gender, password)
+
+    def block_account(self, bank_acc: BankAccount) -> None:
+        bank_acc._is_open = False
