@@ -35,6 +35,7 @@ class Bank:
     def __init__(self) -> None:
         self._persons = {}
         self._pending_changes = deque()
+        self._rejected_changes = deque()
 
     def get_person(self, id: int) -> Person:
         if person := self._persons.get(id, False):
@@ -45,11 +46,20 @@ class Bank:
     def num_of_pending_changes(self) -> int:
         return len(self._pending_changes)
 
+    def num_of_rejected_changes(self) -> int:
+        return len(self._rejected_changes)
+
     def get_pending_change(self) -> tuple[Person, dict]:
         return self._pending_changes.pop()
 
+    def get_rejected_change(self) -> tuple[Person, dict, dict]:
+        return self._rejected_changes.pop()
+
     def add_pending_change(self, person: Person, change: dict) -> None:
         self._pending_changes.appendleft((person, change))
+
+    def add_rejected_change(self, person: Person, cur: dict, to: dict) -> None:
+        self._rejected_changes.appendleft((person, cur, to))
 
     def add_person(self, id: int, account: Person) -> None:
         self._persons[id] = account
@@ -105,11 +115,11 @@ class Bank:
 
     def _manage_customer(self, customer: Customer) -> None:
         print(
-            "1. Edit details\n2. Deposit\n3. Withdraw\n4. Print passbook\n5. Back to login"
+            "1. Edit details\n2. Deposit\n3. Withdraw\n4. Print passbook\n5. Print comments\n6. Back to login"
         )
-        choice = self._input_choice(1, 5)
+        choice = self._input_choice(1, 6)
 
-        if choice == 5:
+        if choice == 6:
             self.manage()
             return
 
@@ -127,6 +137,10 @@ class Bank:
             passbook = acc.get_passbook()
             for statements in passbook:
                 print(statements)
+        elif choice == 5:
+            comments = customer.get_comments()
+            for comment in comments:
+                print(comment)
 
         if self._input_continue():
             self._manage_customer(customer)
@@ -150,10 +164,12 @@ class Bank:
         cashier.set_balance(bank_acc, amount)
 
     def _manage_cashier(self, cashier: Cashier) -> None:
-        print("1. Add customer\n2. Set customer's balance\n3. Back to login")
-        choice = self._input_choice(1, 3)
+        print(
+            "1. Add customer\n2. Add comment\n3. Set customer's balance\n4. Back to login"
+        )
+        choice = self._input_choice(1, 4)
 
-        if choice == 3:
+        if choice == 4:
             self.manage()
             return
 
@@ -161,7 +177,15 @@ class Bank:
             id, customer = self._input_details(cashier)
             print(f"Customer with id {id} added to database.")
             self.add_person(id, customer)
-        if choice == 2:
+        elif choice == 2:
+            if self.num_of_rejected_changes() == 0:
+                print("No rejected changes found!")
+            else:
+                customer, cur, to = self.get_rejected_change()
+                print(f"Rejected change: {cur} -> {to}")
+                comment = input("Enter comment: ")
+                cashier.add_comment(customer, cur, to, comment)
+        elif choice == 3:
             self._input_set_balance(cashier)
 
         if self._input_continue():
@@ -185,7 +209,8 @@ class Bank:
             else:
                 customer, change = self.get_pending_change()
                 if not manager.process_change(customer, change):
-                    self.add_pending_change(customer, change)
+                    cur = customer.get_details()
+                    self.add_rejected_change(customer, cur, change)
         elif choice == 3:
             customer = self._input_id()
             bank_acc = customer.get_bank_account()
@@ -209,7 +234,8 @@ class Bank:
                 print(f"Hello customer {name}, your current balance is: {balance}")
                 self._manage_customer(person)
         elif isinstance(person, Cashier):
-            print(f"Hello cashier {name}.")
+            num = self.num_of_rejected_changes()
+            print(f"Hello cashier {name}, no. of rejected changes are: {num}")
             self._manage_cashier(person)
         elif isinstance(person, Manager):
             num = self.num_of_pending_changes()

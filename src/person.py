@@ -1,4 +1,5 @@
 from random import randint
+from collections import deque
 
 from account import Account, BankAccount
 from exceptions import InvalidPassword
@@ -38,9 +39,13 @@ class Customer(Person):
     ) -> None:
         super().__init__(name, age, gender, password)
         self._bank_acc = bank_acc
+        self._comment = deque()
 
     def get_bank_account(self) -> BankAccount:
         return self._bank_acc
+
+    def get_comments(self) -> list:
+        return self._comment
 
     def request_change(self) -> dict:
         try:
@@ -69,6 +74,9 @@ class Cashier(Person):
         id = get_id()
         bank_acc = BankAccount(id, balance)
         return id, Customer(bank_acc, name, age, gender, password)
+
+    def add_comment(self, customer: Customer, cur: dict, to: dict, comment) -> None:
+        customer._comment.appendleft(f"Change {cur} -> {to} rejected as {comment}.")
 
     def set_balance(self, bank_acc: BankAccount, amount: int) -> None:
         balance = bank_acc.get_balance()
