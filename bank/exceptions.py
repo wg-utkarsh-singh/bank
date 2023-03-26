@@ -10,5 +10,5 @@ class InvalidPassword(Exception):
     pass
 
 
-class BankAccountBlocked(Exception):
+class AccountBlocked(Exception):
     pass

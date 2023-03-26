@@ -1,21 +1,28 @@
 # Testing accounts:
-# Manager:  id=52046, name="manager",  age=30, gender="M", password="12345"
-# Cashier:  id=20493, name="cashier",  age=25, gender="M", password="12345"
-# Customer: id=51164, name="customer", age=21, gender="M", password="12345", balance=1000
+# Manager:  id=40649, name="manager",  age=30, gender="M", password="12345"
+# Cashier:  id=27331, name="cashier",  age=25, gender="M", password="12345"
+# Customer: id=44846, name="customer", age=21, gender="M", password="12345", balance=1000
 
 from pickle import dump, load
 
-from bank import Bank
+from bank.bank import Bank
+from bank.account import Account
+from bank.manager import Manager
 
 
 def demo_bank() -> Bank:
     bank = Bank()
-    manager_id = bank.add_manager("manager", 30, "M", "12345")
-    manager = bank.get_person(manager_id)
+
+    acc = Account()
+    manager = Manager(acc, "manager", 30, "M", "12345")
+    bank.add_person(acc.get_id(), manager)
+
     cashier_id, cashier = manager.add_cashier("cashier", 25, "M", "12345")
     bank.add_person(cashier_id, cashier)
+
     customer_id, customer = cashier.add_customer("customer", 21, "M", "12345", 1000)
     bank.add_person(customer_id, customer)
+
     return bank
 
 
@@ -30,8 +37,6 @@ def load_bank_data(filename: str) -> Bank:
 
 
 if __name__ == "__main__":
-    test_filename = "../data/data.pkl"
-    dump_bank_data(demo_bank(), test_filename)
+    test_filename = "data/data.pkl"
     bank = load_bank_data(test_filename)
-    print(bank._persons)
     bank.manage()
