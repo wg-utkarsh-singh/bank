@@ -1,0 +1,298 @@
+openapi: 3.0.3
+info:
+  title: Bank Management System
+  version: "0.1"
+tags:
+  - name: manager
+  - name: cashier
+  - name: customer
+  - name: bank_acc
+  - name: change
+  - name: misc
+paths:
+  /manager:
+    get:
+      tags:
+        - manager
+      summary: Returns a list of manager
+      responses:
+        '200':
+          description: A JSON array of manager
+          content:
+            application/json:
+              schema: 
+                type: array
+                items: 
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    age:
+                      type: integer
+                    gender:
+                      type: string
+  /manager/{manager_id}:
+    get:
+      tags:
+        - manager
+      summary: Returns a specific manager
+      responses:
+        '200':
+          description: A JSON object of manager
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  age:
+                    type: integer
+                  gender:
+                    type: string
+    delete:
+      tags:
+        - manager
+      summary: Delete a specific manager
+      responses:
+        '200':
+          description: Manager deleted successfully
+    parameters:
+    - in: path
+      name: manager_id
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  /cashier:
+    get:
+      tags:
+        - cashier
+      summary: Returns a list of cashier
+      responses:
+        '200':
+          description: A JSON array of cashier
+          content:
+            application/json:
+              schema: 
+                type: array
+                items: 
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    age:
+                      type: integer
+                    gender:
+                      type: string
+  /cashier/{cashier_id}:
+    get:
+      tags:
+        - cashier
+      summary: Returns a specific cashier
+      responses:
+        '200':
+          description: A JSON object of cashier
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  age:
+                    type: integer
+                  gender:
+                    type: string
+    delete:
+      tags:
+        - cashier
+      summary: Delete a specific cashier
+      responses:
+        '200':
+          description: Cashier deleted successfully
+    parameters:
+    - in: path
+      name: cashier_id
+      required: true
+      schema:
+        type: integer
+        minLength: 1
+  /customer:
+    get:
+      tags:
+        - customer
+      summary: Returns a list of customer
+      responses:
+        '200':
+          description: A JSON array of customer
+          content:
+            application/json:
+              schema: 
+                type: array
+                items: 
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    age:
+                      type: integer
+                    gender:
+                      type: string
+  /customer/{customer_id}:
+    get:
+      tags:
+        - customer
+      summary: Returns a specific customer
+      responses:
+        '200':
+          description: A JSON object of customer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  age:
+                    type: integer
+                  gender:
+                    type: string
+    delete:
+      tags:
+        - customer
+      summary: Delete a specific customer
+      responses:
+        '200':
+          description: Customer deleted successfully
+    parameters:
+    - in: path
+      name: customer_id
+      required: true
+      schema:
+        type: integer
+        minLength: 1
+  /bank_acc:
+    get:
+      tags:
+        - bank_acc
+      summary: Returns a list of bank accounts
+      responses:
+        '200':
+          description: A JSON array of bank_acc
+          content:
+            application/json:
+              schema: 
+                type: array
+                items: 
+                  type: string
+  /bank_acc/{bank_acc_id}:
+    get:
+      tags:
+        - bank_acc
+      summary: Returns a specific bank account
+      responses:
+        '200':
+          description: A JSON object of bank account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  balance:
+                    type: number
+    parameters:
+    - in: path
+      name: bank_acc_id
+      required: true
+      schema:
+        type: integer
+        minLength: 1
+  /customer/{customer_id}/bank_acc/{bank_acc_id}:
+    post:
+      tags:
+        - bank_acc
+      summary: Link a customer to bank account
+      responses:
+        '200':
+          description: A JSON object of bank account
+    delete:
+      tags:
+        - bank_acc
+      summary: Delete the link btw customer and bank account
+      responses:
+        '200':
+          description: A JSON object of bank account
+    parameters:
+    - in: path
+      name: customer_id
+      required: true
+      schema:
+        type: integer
+        minLength: 1
+    - in: path
+      name: bank_acc_id
+      required: true
+      schema:
+        type: integer
+        minLength: 1
+  /register:
+    post:
+      tags:
+        - misc
+      summary: Register a new Customer, Cashier or Manager
+      requestBody:
+        description: Create a new cashier
+        content:
+          application/json:
+            schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  name:
+                    type: string
+                  age:
+                    type: integer
+                  gender:
+                    type: string
+                  password:
+                    type: string
+      responses:
+        '200':
+          description: Successful operation
+  /login:
+    post:
+      tags:
+        - misc
+      summary: Login a Customer, Cashier or Manager
+      requestBody:
+        description: Create a new cashier
+        content:
+          application/json:
+            schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  id:
+                    type: integer
+                  password:
+                    type: string
+      responses:
+        '200':
+          description: Successful operation
