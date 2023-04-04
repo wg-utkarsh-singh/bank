@@ -1,10 +1,9 @@
+from db import db
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
-from sqlalchemy.exc import SQLAlchemyError
-
-from db import db
 from models import ChangeModel, ChangeStatus, CustomerModel
 from resources.schemas import ChangeSchema, CommentSchema, PlainChangeSchema
+from sqlalchemy.exc import SQLAlchemyError
 
 blp = Blueprint("Change", "changes", description="Operations on changes")
 
@@ -25,6 +24,10 @@ class RequestChange(MethodView):
             abort(400, message="Old and new request should contain same keys.")
 
         customer = CustomerModel.query.get_or_404(customer_id)
+        for attribute in change_data["old"]:
+            if getattr(customer, attribute) != change_data["old"][attribute]:
+                abort(400, message=f"Database mismatch for {attribute!r} attribute.")
+
         change = ChangeModel(
             status=ChangeStatus.pending,
             customer_id=customer.id,
@@ -52,7 +55,7 @@ class AcceptChange(MethodView):
         new_change = change.change["new"]
 
         for attribute, value in new_change.items():
-            setattr(customer, f"{attribute}", value)
+            setattr(customer, attribute, value)
 
         change.status = ChangeStatus.accepted
 
