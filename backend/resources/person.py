@@ -31,14 +31,20 @@ class PersonRegister(MethodView):
     @blp.arguments(PersonSchema)
     @blp.response(201, PersonSchema)
     def post(self, person_data):
-        if EmployeeModel.query.filter(
-            EmployeeModel.email == person_data["email"]
-        ).first():
+        if (
+            person_data["role"] == PersonRole.customer
+            and CustomerModel.query.filter(
+                CustomerModel.email == person_data["email"]
+            ).first()
+        ):
             abort(409, message=f"{person_data['email']} already exist in database.")
 
-        if CustomerModel.query.filter(
-            CustomerModel.email == person_data["email"]
-        ).first():
+        if (
+            person_data["role"] != PersonRole.customer
+            and EmployeeModel.query.filter(
+                EmployeeModel.email == person_data["email"]
+            ).first()
+        ):
             abort(409, message=f"{person_data['email']} already exist in database.")
 
         if person_data["role"] == PersonRole.customer:
