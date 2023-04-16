@@ -84,7 +84,7 @@ class PersonLogin(MethodView):
         else:
             person = EmployeeModel.query.filter_by(id=login_data["id"]).one_or_none()
 
-        if person and hash_password(login_data["password"]) != person.password:
+        if not person or hash_password(login_data["password"]) != person.password:
             abort(401, message="Invalid credentials.")
 
         access_token = create_access_token(
