@@ -1,10 +1,12 @@
 from hashlib import sha256
 
+from blocklist import BLOCKLIST
 from db import db
 from flask.views import MethodView
+from flask_jwt_extended import create_access_token, get_jwt, jwt_required
 from flask_smorest import Blueprint, abort
 from models import CustomerModel, EmployeeModel, LastAccountIdModel, PersonRole
-from resources.schemas import PersonSchema
+from resources.schemas import LoginSchema, PersonSchema
 
 blp = Blueprint("Person", "persons", description="Operations on persons")
 START_ACCOUNT_ID = 10_00_00_000
@@ -71,3 +73,30 @@ class PersonRegister(MethodView):
         db.session.commit()
 
         return person, 201
+
+
+@blp.route("/login")
+class PersonLogin(MethodView):
+    @blp.arguments(LoginSchema)
+    def post(self, login_data):
+        if login_data["role"] == PersonRole.customer:
+            person = CustomerModel.query.filter_by(id=login_data["id"]).one_or_none()
+        else:
+            person = EmployeeModel.query.filter_by(id=login_data["id"]).one_or_none()
+
+        if person and hash_password(login_data["password"]) != person.password:
+            abort(401, message="Invalid credentials.")
+
+        access_token = create_access_token(
+            identity=person.id, additional_claims={"role": str(login_data["role"])}
+        )
+        return {"access": access_token}
+
+
+@blp.route("/logout")
+class PersonLogout(MethodView):
+    @jwt_required()
+    def post(self):
+        jti = get_jwt()["jti"]
+        BLOCKLIST.add(jti)
+        return {"message": "Successfully logged out"}, 200

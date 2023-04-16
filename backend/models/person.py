@@ -8,6 +8,9 @@ class PersonRole(Enum):
     cashier = 2
     manager = 3
 
+    def __str__(self):
+        return self.name
+
 
 class PersonModel(db.Model):
     __abstract__ = True

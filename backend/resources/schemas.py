@@ -21,11 +21,11 @@ class PersonSchema(PlainPersonSchema):
 
 
 class BankAccountSchema(PlainBankAccountSchema):
-    customers = fields.List(fields.Nested(PlainPersonSchema()), dump_only=True)
+    customers = fields.List(fields.Nested(PlainPersonSchema), dump_only=True)
 
 
 class CustomerSchema(PlainPersonSchema):
-    bank_accounts = fields.List(fields.Nested(PlainBankAccountSchema()), dump_only=True)
+    bank_accounts = fields.List(fields.Nested(PlainBankAccountSchema), dump_only=True)
 
 
 class BankAccountAndCustomerSchema(Schema):
@@ -66,3 +66,9 @@ class TransactionSchema(Schema):
     bank_account_id = fields.Int(dump_only=True)
     amount = fields.Float(required=True)
     balance = fields.Float(required=True)
+
+
+class LoginSchema(Schema):
+    role = fields.Enum(PersonRole, required=True)
+    id = fields.Int(required=True)
+    password = fields.Str(load_only=True)
