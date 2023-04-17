@@ -1,4 +1,5 @@
 from os import getenv
+from secrets import SystemRandom
 
 import resources
 from blocklist import BLOCKLIST
@@ -23,7 +24,7 @@ def create_app(db_url=None):
         "DATABASE_URL", "sqlite:///data.db"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = "secret"
+    app.config["JWT_SECRET_KEY"] = str(SystemRandom().getrandbits(128))
 
     jwt = JWTManager(app)
 
