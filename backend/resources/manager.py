@@ -1,50 +1,43 @@
-from db import db
-from flask.views import MethodView
-from flask_jwt_extended import get_jwt, jwt_required
-from flask_smorest import Blueprint, abort
-from models import EmployeeModel, PersonRole
+from db_handlers import manager_db
+from flask import current_app as app
 from resources.schemas import PlainPersonSchema
-
-blp = Blueprint("Manager", "managers", description="Operations on managers")
-
-
-@blp.route("/managers")
-class ManagerList(MethodView):
-    @jwt_required()
-    @blp.response(200, PlainPersonSchema(many=True))
-    def get(self):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
-
-        return EmployeeModel.query.filter(
-            EmployeeModel.role == PersonRole.manager
-        ).all()
+from utils import response
+from utils.authorization import role_in
 
 
-@blp.route("/managers/<int:manager_id>")
-class Manager(MethodView):
-    @jwt_required()
-    @blp.response(200, PlainPersonSchema)
-    def get(self, manager_id):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
+@app.route("/managers")
+@response(200, PlainPersonSchema(many=True))
+def get_managers_list():
+    if not role_in(["manager"]):
+        return {"message": "Unauthorized"}, 401
 
-        manager = EmployeeModel.query.filter_by(
-            id=manager_id, role=PersonRole.manager
-        ).first_or_404()
-        return manager
+    managers = manager_db.get()
+    return managers, 200
 
-    @jwt_required()
-    def delete(self, manager_id):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
 
-        manager = EmployeeModel.query.filter_by(
-            id=manager_id, role=PersonRole.manager
-        ).first_or_404()
-        db.session.delete(manager)
-        db.session.commit()
-        return {"message": "Manager deleted"}, 200
+@app.route("/managers/<int:manager_id>")
+@response(200, PlainPersonSchema)
+def get_manager(manager_id):
+    if not role_in(["manager"]):
+        return {"message": "Unauthorized"}, 401
+
+    manager = manager_db.get(manager_id)
+    if not manager:
+        return {"message": "Manager not found"}, 404
+
+    return manager, 200
+
+
+@app.route("/managers/<int:manager_id>", methods=["DELETE"])
+def delete_manager(manager_id):
+    if not role_in(["manager"]):
+        return {"message": "Unauthorized"}, 401
+
+    manager = manager_db.get(manager_id)
+    if not manager:
+        return {"message": "manager not found"}, 404
+
+    if not manager_db.delete(manager):
+        return {"message": "An error occurred while deleting the customer"}, 500
+
+    return {"message": "Manager deleted"}, 200

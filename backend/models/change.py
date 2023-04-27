@@ -1,8 +1,7 @@
 from enum import Enum
 
-from sqlalchemy import JSON
-
 from db import db
+from sqlalchemy import JSON
 
 
 class ChangeStatus(Enum):

@@ -1,5 +1,6 @@
 flask
-flask-smorest
 sqlalchemy
 flask-sqlalchemy
+marshmallow
+webargs
 flask-jwt-extended

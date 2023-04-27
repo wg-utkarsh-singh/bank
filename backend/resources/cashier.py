@@ -1,50 +1,43 @@
-from db import db
-from flask.views import MethodView
-from flask_jwt_extended import get_jwt, jwt_required
-from flask_smorest import Blueprint, abort
-from models import EmployeeModel, PersonRole
+from db_handlers import cashier_db
+from flask import current_app as app
 from resources.schemas import PlainPersonSchema
-
-blp = Blueprint("Cashier", "cashiers", description="Operations on cashiers")
-
-
-@blp.route("/cashiers")
-class CashierList(MethodView):
-    @jwt_required()
-    @blp.response(200, PlainPersonSchema(many=True))
-    def get(self):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
-
-        return EmployeeModel.query.filter(
-            EmployeeModel.role == PersonRole.cashier
-        ).all()
+from utils import response
+from utils.authorization import role_in
 
 
-@blp.route("/cashiers/<int:cashier_id>")
-class Cashier(MethodView):
-    @jwt_required()
-    @blp.response(200, PlainPersonSchema)
-    def get(self, cashier_id):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
+@app.route("/cashiers")
+@response(200, PlainPersonSchema(many=True))
+def get_cashiers_list():
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
 
-        cashier = EmployeeModel.query.filter_by(
-            id=cashier_id, role=PersonRole.cashier
-        ).first_or_404()
-        return cashier
+    cashiers = cashier_db.get()
+    return cashiers, 200
 
-    @jwt_required()
-    def delete(self, cashier_id):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
 
-        cashier = EmployeeModel.query.filter_by(
-            id=cashier_id, role=PersonRole.cashier
-        ).first_or_404()
-        db.session.delete(cashier)
-        db.session.commit()
-        return {"message": "Cashier deleted"}, 200
+@app.route("/cashiers/<int:cashier_id>")
+@response(200, PlainPersonSchema(many=True))
+def get_cashier(cashier_id):
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
+
+    cashier = cashier_db.get(cashier_id)
+    if not cashier:
+        return {"message": "Cashier not found"}, 404
+
+    return cashier, 200
+
+
+@app.route("/cashiers/<int:cashier_id>", methods=["DELETE"])
+def delete_cashier(cashier_id):
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
+
+    cashier = cashier_db.get(cashier_id)
+    if not cashier:
+        return {"message": "Cashier not found"}, 404
+
+    if not cashier_db.delete(cashier):
+        return {"message": "An error occurred while deleting the customer"}, 500
+
+    return {"message": "Cashier deleted"}, 200

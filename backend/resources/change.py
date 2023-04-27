@@ -1,103 +1,77 @@
-from db import db
-from flask.views import MethodView
-from flask_jwt_extended import get_jwt, jwt_required
-from flask_smorest import Blueprint, abort
-from models import ChangeModel, ChangeStatus, CustomerModel
-from resources.schemas import ChangeSchema, CommentSchema, PlainChangeSchema
-from sqlalchemy.exc import SQLAlchemyError
-
-blp = Blueprint("Change", "changes", description="Operations on changes")
+import resources.schemas as schemas
+from db_handlers import change_db, customer_db
+from flask import current_app as app
+from utils import arguments, response
+from utils.authorization import is_same_customer, role_in
 
 
-@blp.route("/changes")
-class ChangeList(MethodView):
-    @blp.response(200, ChangeSchema(many=True))
-    def get(self):
-        return ChangeModel.query.all()
+@app.route("/changes")
+@response(200, schemas.ChangeSchema(many=True))
+def change_list():
+    if not role_in(["manager"]):
+        return {"message": "Unauthorized"}, 401
+
+    changes = change_db.get()
+    return changes, 200
 
 
-@blp.route("/customers/<int:customer_id>/requestChange")
-class RequestChange(MethodView):
-    @jwt_required()
-    @blp.arguments(PlainChangeSchema)
-    @blp.response(201, ChangeSchema)
-    def post(self, change_data, customer_id):
-        claim = get_jwt()
-        if claim["role"] != "customer" or claim["sub"] != customer_id:
-            abort(401, "Unauthorized")
+@app.route("/customers/<int:customer_id>/requestChange", methods=["POST"])
+@arguments(schemas.PlainChangeSchema)
+@response(201, schemas.ChangeSchema)
+def request_change(change_data, customer_id):
+    if not role_in(["manager"]) and not is_same_customer(customer_id):
+        return {"message": "Unauthorized"}, 401
 
-        if change_data["old"].keys() != change_data["new"].keys():
-            abort(400, message="Old and new request should contain same keys.")
+    if change_data["old"].keys() != change_data["new"].keys():
+        return {"message": "Old and new request should contain same keys."}, 400
 
-        customer = CustomerModel.query.get_or_404(customer_id)
-        for attribute in change_data["old"]:
-            if getattr(customer, attribute) != change_data["old"][attribute]:
-                abort(400, message=f"Database mismatch for {attribute!r} attribute.")
+    customer = customer_db.get(customer_id)
+    if not customer:
+        return {"message": "Customer not found"}, 404
 
-        change = ChangeModel(
-            status=ChangeStatus.pending,
-            customer_id=customer.id,
-            change=change_data,
-        )
+    for attribute in change_data["old"]:
+        if getattr(customer, attribute) != change_data["old"][attribute]:
+            return {"message": f"Database mismatch for {attribute!r} attribute."}, 400
 
-        try:
-            db.session.add(change)
-            db.session.commit()
-        except:
-            abort(500, message="An error occurred requesting a change.")
+    change = change_db.post(customer_id, change_data)
+    if not change:
+        return {"message": "An error occurred requesting a change."}, 500
 
-        return change, 201
+    return change, 201
 
 
-@blp.route("/changes/<int:change_id>/accept")
-class AcceptChange(MethodView):
-    @jwt_required()
-    @blp.response(200, ChangeSchema)
-    def post(self, change_id):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
+@app.route("/changes/<int:change_id>/accept", methods=["POST"])
+@response(200, schemas.ChangeSchema)
+def accept_change(change_id):
+    if not role_in(["manager"]):
+        return {"message": "Unauthorized"}, 401
 
-        change = ChangeModel.query.get_or_404(change_id)
-        if change.status != ChangeStatus.pending:
-            abort(409, message="Change not in an pending state.")
+    change = change_db.get(change_id)
+    if not change_db.is_pending(change):
+        return {"message": "Change not in an pending state."}, 409
 
-        customer = CustomerModel.query.get(change.customer_id)
-        new_change = change.change["new"]
+    customer_id = change_db.get_customer_id(change)
+    customer = customer_db.get(customer_id)
+    change = change_db.accept(change, customer)
+    if not change:
+        return {"message": "An error occurred accepting a change request."}, 500
 
-        for attribute, value in new_change.items():
-            setattr(customer, attribute, value)
-
-        change.status = ChangeStatus.accepted
-
-        try:
-            db.session.commit()
-        except SQLAlchemyError:
-            abort(500, message="An error occurred accepting a change request.")
-
-        return change, 200
+    return change, 200
 
 
-@blp.route("/changes/<int:change_id>/reject")
-class RejectChange(MethodView):
-    @jwt_required()
-    @blp.arguments(CommentSchema)
-    @blp.response(200, ChangeSchema)
-    def post(self, comment_data, change_id):
-        claim = get_jwt()
-        if claim["role"] != "manager":
-            abort(401, "Unauthorized")
+@app.route("/changes/<int:change_id>/reject", methods=["POST"])
+@arguments(schemas.CommentSchema)
+@response(200, schemas.ChangeSchema)
+def reject_change(comment_data, change_id):
+    if not role_in(["manager"]):
+        return {"message": "Unauthorized"}, 401
 
-        change = ChangeModel.query.get_or_404(change_id)
-        if change.status != ChangeStatus.pending:
-            abort(409, message="Change not in an pending state.")
+    change = change_db.get(change_id)
+    if not change_db.is_pending(change):
+        return {"message": "Change not in an pending state."}, 409
 
-        change.comment = comment_data["comment"]
-        change.status = ChangeStatus.rejected
+    change = change_db.reject(change, comment_data["comment"])
+    if not change:
+        return {"message": "An error occurred rejecting a change request."}, 500
 
-        try:
-            db.session.commit()
-        except SQLAlchemyError:
-            abort(500, message="An error occurred accepting a change request.")
-
-        return change, 200
+    return change, 200

@@ -70,5 +70,5 @@ class TransactionSchema(Schema):
 
 class LoginSchema(Schema):
     role = fields.Enum(PersonRole, required=True)
-    id = fields.Int(required=True)
+    email = fields.Email(required=True)
     password = fields.Str(load_only=True)

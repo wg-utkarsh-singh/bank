@@ -1,44 +1,43 @@
-from db import db
-from flask.views import MethodView
-from flask_jwt_extended import get_jwt, jwt_required
-from flask_smorest import Blueprint, abort
-from models import CustomerModel
+from db_handlers import customer_db
+from flask import current_app as app
 from resources.schemas import CustomerSchema
-
-blp = Blueprint("Customer", "customers", description="Operations on customers")
-
-
-@blp.route("/customers")
-class CustomerList(MethodView):
-    @jwt_required()
-    @blp.response(200, CustomerSchema(many=True))
-    def get(self):
-        claim = get_jwt()
-        if claim["role"] not in ["manager", "cashier"]:
-            abort(401, "Unauthorized")
-
-        return CustomerModel.query.all()
+from utils import response
+from utils.authorization import role_in
 
 
-@blp.route("/customers/<int:customer_id>")
-class Customer(MethodView):
-    @jwt_required()
-    @blp.response(200, CustomerSchema)
-    def get(self, customer_id):
-        claim = get_jwt()
-        if claim["role"] not in ["manager", "cashier"]:
-            abort(401, "Unauthorized")
+@app.route("/customers")
+@response(200, CustomerSchema(many=True))
+def get_customers():
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
 
-        customer = CustomerModel.query.get_or_404(customer_id)
-        return customer
+    customers = customer_db.get()
+    return customers, 200
 
-    @jwt_required()
-    def delete(self, customer_id):
-        claim = get_jwt()
-        if claim["role"] not in ["manager", "cashier"]:
-            abort(401, "Unauthorized")
 
-        store = CustomerModel.query.get_or_404(customer_id)
-        db.session.delete(store)
-        db.session.commit()
-        return {"message": "Customer deleted"}, 200
+@app.route("/customers/<int:customer_id>")
+@response(200, CustomerSchema)
+def get_customer(customer_id):
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
+
+    customer = customer_db.get(customer_id)
+    if not customer:
+        return {"message": "Customer not found"}, 404
+
+    return customer, 200
+
+
+@app.route("/customers/<int:customer_id>", methods=["DELETE"])
+def delete_customer(customer_id):
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
+
+    customer = customer_db.get(customer_id)
+    if not customer:
+        return {"message": "Customer not found"}, 404
+
+    if not customer_db.delete(customer):
+        return {"message": "An error occurred while deleting the customer"}, 500
+
+    return {"message": "Customer deleted"}, 200

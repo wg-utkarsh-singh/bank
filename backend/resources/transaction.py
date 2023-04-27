@@ -1,39 +1,29 @@
-from db import db
-from flask.views import MethodView
-from flask_jwt_extended import get_jwt, jwt_required
-from flask_smorest import Blueprint, abort
-from models import BankAccountModel, TransactionModel
-from resources.bank_account import is_linked_customer
+from db_handlers import bank_account_db, transaction_db
+from flask import current_app as app
 from resources.schemas import TransactionSchema
-
-blp = Blueprint("Transaction", "transactions", description="Operations on transactions")
-
-
-@blp.route("/transactions/<int:bank_account_id>")
-class Transaction(MethodView):
-    @jwt_required()
-    @blp.response(200, TransactionSchema(many=True))
-    def get(self, bank_account_id):
-        claim = get_jwt()
-        role = claim["role"]
-        if role not in ["manager", "cashier", "customer"]:
-            abort(401, "Unauthorized")
-
-        jwt_id = claim["sub"]
-        bank_account = BankAccountModel.query.get_or_404(bank_account_id)
-        if role == "customer" and not is_linked_customer(bank_account, jwt_id):
-            abort(401, "Unauthorized")
-
-        return TransactionModel.query.filter_by(bank_account_id=bank_account_id)
+from utils import response
+from utils.authorization import is_linked_customer, role_in
 
 
-@blp.route("/transactions")
-class TransactionList(MethodView):
-    @jwt_required()
-    @blp.response(200, TransactionSchema(many=True))
-    def get(self):
-        claim = get_jwt()
-        if claim["role"] not in ["manager", "cashier"]:
-            abort(401, "Unauthorized")
+@app.route("/transactions")
+@response(200, TransactionSchema(many=True))
+def get_transaction_list():
+    if not role_in(["manager", "cashier"]):
+        return {"message": "Unauthorized"}, 401
 
-        return TransactionModel.query.all()
+    transactions = transaction_db.get()
+    return transactions, 200
+
+
+@app.route("/transactions/<int:bank_account_id>")
+@response(200, TransactionSchema(many=True))
+def get_transaction(bank_account_id):
+    bank_account = bank_account_db.get(bank_account_id)
+    if not bank_account:
+        return {"message": "Bank account not found"}, 404
+
+    if not role_in(["manager", "cashier"]) and not is_linked_customer(bank_account):
+        return {"message": "Unauthorized"}, 401
+
+    transactions = transaction_db.filter(bank_account_id)
+    return transactions, 200
